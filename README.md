@@ -26,7 +26,7 @@
 | 911Proxy              | √  | <https://www.911proxy.com>     |
 | LumiProxy             | √  | <https://www.lumiproxy.com>    |
 | ProxyShare            | √  | <https://www.proxyshare.com>   |
-z z
+
 ### 使用说明
 
 1. 安装需要的支持库 `pip install -r requirements.txt`
@@ -35,7 +35,7 @@ z z
 
 ### 运行结果
 
-![](https://raw.githubusercontent.com/Fog-Forest/free-proxy-pool/main/demo.png)
+![](https://raw.githubusercontent.com/Fog-Forest/free-proxy-pool/main/images/screenshot.png)
 
 ### 注意事项
 
