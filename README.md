@@ -26,11 +26,11 @@
 |:--------------|:--:|-------|:--------------------------------|
 | 云代理           | ✅  | 普通/高匿 | <http://www.ip3366.net>         |
 | 快代理           | ✅  | 普通/高匿 | <https://www.kuaidaili.com>     |
-| 站大爷           | ❌  | 高匿    | <https://www.zdaye.com/>        |
+| 站大爷           | ❌  | 高匿    | <https://www.zdaye.com>         |
 | 开心代理          | ✅  | 普通/高匿 | <http://www.kxdaili.com>        |
 | 积流代理          | ✅  | 高匿    | <https://www.jiliuip.com>       |
 | 齐云代理          | ✅  | 高匿    | <https://www.qiyunip.com>       |
-| 89免费代理        | ✅  | 未知    | <https://www.89ip.cn/>          |
+| 89免费代理        | ✅  | 未知    | <https://www.89ip.cn>           |
 | 小幻HTTP代理      | ❌  | 高匿    | <https://ip.ihuan.me>           |
 | 911Proxy      | ✅  | 普通/高匿 | <https://www.911proxy.com>      |
 | FineProxy     | ✅  | 普通/高匿 | <https://fineproxy.org>         |
