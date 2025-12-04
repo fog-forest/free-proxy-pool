@@ -172,13 +172,6 @@ ANONYMOUS_PROXIES = [
         "delay": 2,
     },
     {
-        "name": "小幻HTTP代理(高匿)",
-        "url": "https://ip.ihuan.me/?page=b97827cc",
-        "parser": "ihuan",
-        "pages": 1,
-        "delay": 8,
-    },
-    {
         "name": "911Proxy(高匿)",
         "url": "https://www.911proxy.com/web_v1/free-proxy/list?anonymity=2&page_size=60&page=",
         "parser": "api2",
