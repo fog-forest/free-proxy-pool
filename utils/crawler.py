@@ -1,7 +1,7 @@
 import json
 import re
 import time
-from typing import List
+from typing import List, Dict, Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -16,13 +16,16 @@ class ProxyCrawler:
         }
         self.proxies = []  # 存储爬取的代理IP
 
-    def fetch(self, url: str, timeout: int = 5) -> str:
-        """请求页面，返回源码"""
+    def fetch(self, url: str, timeout: int = 5, post_data: Optional[Dict] = None) -> str:
+        """请求页面，返回源码（支持GET/POST）"""
         try:
-            response = requests.get(url, headers=self.headers, timeout=timeout)
+            if post_data:
+                response = requests.post(url, headers=self.headers, data=post_data, timeout=timeout)
+            else:
+                response = requests.get(url, headers=self.headers, timeout=timeout)
             return response.text
         except Exception as e:
-            print(f"❌ 请求失败 {url}：{str(e)[:50]}")
+            print(f"❌ [请求失败] {url}：{str(e)[:50]}")
             return ""
 
     @staticmethod
@@ -36,8 +39,6 @@ class ProxyCrawler:
         result = []
         try:
             data = json.loads(html)
-
-            # 兼容不同JSON结构提取代理列表
             proxy_list = []
             if isinstance(data.get("data"), dict):
                 proxy_list = data["data"].get("list", [])
@@ -47,37 +48,27 @@ class ProxyCrawler:
                 proxy_list = data["list"]
 
             if not proxy_list:
-                print("⚠️ JSON接口无代理数据")
+                print("⚠️ [JSON接口] 无代理数据")
                 return result
 
-            # 过滤有效代理
             valid_protocol = {1, 2}
-            total = len(proxy_list)
-            filtered = 0
-
             for proxy in proxy_list:
                 protocol = proxy.get("protocol")
                 ip = proxy.get("ip")
                 port = proxy.get("port")
 
-                # 校验IP/端口/协议合法性
                 ip_valid = isinstance(ip, str) and re.match(r'\d+\.\d+\.\d+\.\d+', ip)
                 port_valid = isinstance(port, (int, str)) and str(port).isdigit()
                 protocol_valid = protocol in valid_protocol
 
                 if ip_valid and port_valid and protocol_valid:
                     result.append(f"{ip}:{str(port).strip()}")
-                    print(f"{ip}:{str(port).strip()}")
-                    filtered += 1
-
-            print(f"✅ JSON解析完成 | 总数：{total} | 有效：{filtered}")
             return result
-
         except json.JSONDecodeError:
-            print("❌ 非有效JSON格式")
+            print("❌ [JSON解析] 非有效JSON格式")
             return result
         except Exception as e:
-            print(f"❌ JSON解析异常：{str(e)[:50]}")
+            print(f"❌ [JSON解析] 异常：{str(e)[:50]}")
             return result
 
     @staticmethod
@@ -122,8 +113,9 @@ class ProxyCrawler:
         pattern = r'const fpsList = (\[.*?\]);'
         match = re.search(pattern, html, re.DOTALL)
         if not match:
-            print("⚠️ 未找到fpsList数据")
+            print("⚠️ [fpsList解析] 未找到数据")
             return []
+
         try:
             proxy_list = json.loads(match.group(1))
             result = []
@@ -132,15 +124,45 @@ class ProxyCrawler:
                     result.append(f"{item['ip']}:{item['port']}")
             return result
         except json.JSONDecodeError as e:
-            print(f"❌ JSON解析失败：{str(e)[:50]}")
+            print(f"❌ [fpsList解析] JSON错误：{str(e)[:50]}")
             return []
+
+    @staticmethod
+    def parse_fineproxy(html: str) -> List[str]:
+        """解析FineProxy的响应数据, 提取ip+port"""
+        try:
+            response_json = json.loads(html)
+        except json.JSONDecodeError as e:
+            print(f"❌ [FineProxy解析] JSON错误：{str(e)[:50]}")
+            return []
+
+        rows_html = response_json.get("data", {}).get("rows", "").strip()
+        if not rows_html:
+            print("⚠️ [FineProxy解析] 无有效数据（rows为空）")
+            return []
+
+        pattern = r'<td\s+class=["\']table-ip["\']\s*>\s*(\d+\.\d+\.\d+\.\d+)\s*</td>\s*<td\s*>\s*(\d+)\s*</td>'
+        matches = re.findall(pattern, rows_html, re.IGNORECASE | re.DOTALL)
+        if not matches:
+            print("⚠️ [FineProxy解析] 未匹配到IP和端口")
+            return []
+
+        result = []
+        for ip, port in matches:
+            try:
+                port_int = int(port)
+                if 1 <= port_int <= 65535:
+                    result.append(f"{ip}:{port_int}")
+            except (ValueError, TypeError):
+                continue
+        return result
 
     def _get_auto_page_count(self, url: str) -> int:
         """内部方法：自动获取api2总页数"""
         first_page_url = url + "1" if url.endswith("page=") else url
         html = self.fetch(first_page_url)
         if not html:
-            print("❌ 自动获取总页数失败")
+            print("❌ [自动分页] 获取总页数失败")
             return 1
         try:
             data = json.loads(html)
@@ -152,77 +174,135 @@ class ProxyCrawler:
             page_count = page_count or data.get("page_count", 0)
             return page_count if page_count > 0 else 1
         except Exception:
-            print("❌ 解析总页数失败")
+            print("❌ [自动分页] 解析总页数失败")
             return 1
 
     def crawl(self, source: dict) -> int:
-        """爬取指定源代理IP"""
+        """爬取指定源的代理IP"""
         parser = getattr(self, f"parse_{source['parser']}", None)
         if not parser:
-            print(f"❌ 未知解析器：{source['parser']}")
+            print(f"❌ [爬虫错误] 未知解析器：{source['parser']}")
             return 0
 
-        crawl_count = 0
+        # 分隔符
+        source_name = source['name'].center(30, ' ')
+        print(f"\n{'=' * 80}")
+        print(f"📥 开始爬取 | {source_name}")
+        print(f"{'=' * 80}")
+
+        temp_proxies = []
+        no_data_count = 0
+        before_count = len(self.proxies)
         try:
-            # 处理pages：支持 "auto" / 函数 / 固定数值
+            # 处理分页配置
             if source['pages'] == "auto":
-                # 自动获取总页数，仅api2支持
                 if source['parser'] != "api2":
-                    print("⚠️ 仅api2支持pages='auto'")
+                    print("⚠️ [分页警告] 仅api2支持自动分页，默认爬1页")
                     total_pages = 1
                 else:
                     total_pages = self._get_auto_page_count(source['url'])
-                    print(f"🔍 自动获取总页数：{total_pages}")
-            elif callable(source['pages']):
-                # 支持函数获取总页数
-                total_pages = source['pages'](source['url'])
-                print(f"🔍 函数获取总页数：{total_pages}")
+                    print(f"ℹ️ [分页信息] 自动获取总页数：{total_pages} 页")
             else:
-                # 固定数值总页数
                 total_pages = source['pages']
+                print(f"ℹ️ [分页信息] 配置爬取页数：{total_pages} 页")
 
             # 分页爬取
             for current_page in range(1, total_pages + 1):
-                if source['parser'] == "api2":
-                    if "page=" in source['url']:
-                        if source['url'].endswith("page="):
-                            url = source['url'] + str(current_page)
-                        else:
-                            url = re.sub(r'page=\d+', f'page={current_page}', source['url'])
-                    else:
-                        url = f"{source['url']}&page={current_page}"
-                elif "api1" in source['parser']:
+                # 构建请求URL
+                if "api1" in source['parser']:
                     url = source['url']
-                elif "kxdaili.com" in source['url'] or "qiyunip.com" in source['url']:
+                elif source['parser'] in ["fineproxy"]:
+                    url = source['url']
+                elif any(domain in source['url'] for domain in ["kxdaili.com", "qiyunip.com"]):
                     url = f"{source['url']}{current_page}.html"
                 else:
                     url = f"{source['url']}{current_page}"
 
-                print(f"\n🔍 正在爬取 {source['name']} | 页码：{current_page}/{total_pages} | URL：{url}")
-                html = self.fetch(url)
+                # 处理POST数据
+                post_data = source.get("body") or None
+                if post_data and isinstance(post_data, dict):
+                    post_data = {k: v.replace("{page}", str(current_page)) if "{page}" in str(v) else v
+                                 for k, v in post_data.items()}
 
-                if current_page == 1:
-                    print(f"📄 响应预览：{html[:500]}...")
+                # 分页日志
+                print(f"\n🔄 正在爬取 | 页码：{current_page:2d}/{total_pages:2d} | URL：{url}")
+                print(f"ℹ️  当前累计 | 总列表IP数：{len(self.proxies):3d} 个")
+
+                html = self.fetch(url, post_data=post_data)
+
+                # 仅在第1页显示预览
+                if current_page == 1 and html:
+                    preview = html[:500].replace('\n', ' ').strip()  # 去除换行，精简显示
+                    print(f"📄 响应预览：{preview}...")
+
                 if not html:
-                    print(f"⚠️ 第{current_page}页为空，跳过")
-                    time.sleep(source['delay'])
-                    continue
+                    print(f"⚠️  页码 {current_page:2d} | 请求失败，跳过")
+                    no_data_count += 1
+                else:
+                    ips = parser(html)
+                    valid_ips = [ip for ip in ips if re.match(r'\d+\.\d+\.\d+\.\d+:\d+', ip)]
+                    page_valid_count = len(valid_ips)
 
-                ips = parser(html)
-                print(f"✅ 第{current_page}页提取到 {len(ips)} 个IP")
-                self.proxies.extend(ips)
-                crawl_count += len(ips)
+                    # 分页结果日志
+                    print(f"✅  页码 {current_page:2d} | 提取IP：{len(ips):2d} 个 | 有效格式：{page_valid_count:2d} 个")
+
+                    temp_proxies.extend(valid_ips)
+                    no_data_count = 0 if page_valid_count > 0 else no_data_count + 1
+
+                    if page_valid_count == 0:
+                        print(f"⚠️  页码 {current_page:2d} | 无有效IP，连续无数据次数：{no_data_count}")
+
+                # 连续3次无数据停止
+                if no_data_count >= 3:
+                    print(f"\n🛑 [爬取停止] 连续3次无有效IP，提前结束当前源爬取")
+                    break
 
                 time.sleep(source['delay'])
 
-        except Exception as e:
-            print(f"❌ 爬取失败 {source['name']}：{str(e)[:50]}")
+            # 爬取完成统计
+            self.proxies.extend(temp_proxies)
+            crawl_count = len(temp_proxies)
+            after_count = len(self.proxies)
+            print(f"\n{'=' * 80}")
+            print(f"✅ 爬取完成 | {source['name']}")
+            print(f"   ├─ 本源性新增有效IP：{crawl_count:3d} 个")
+            print(f"   ├─ 总列表累计IP数：{after_count:3d} 个")
+            print(f"   └─ 本次新增量：{after_count - before_count:3d} 个")
+            print(f"{'=' * 80}")
 
-        print(f"\n🔍 {source['name']} 爬取完成 | 总计：{crawl_count} 个IP")
+        except Exception as e:
+            print(f"\n{'=' * 80}")
+            print(f"❌ 爬取失败 | {source['name']}")
+            print(f"   ├─ 失败原因：{str(e)[:50]}")
+            valid_temp = [ip for ip in temp_proxies if re.match(r'\d+\.\d+\.\d+\.\d+:\d+', ip)]
+            crawl_count = len(valid_temp)
+            if valid_temp:
+                self.proxies.extend(valid_temp)
+                after_count = len(self.proxies)
+                print(f"   ├─ 异常恢复：已累计有效IP {crawl_count:3d} 个")
+                print(f"   └─ 总列表当前累计：{after_count:3d} 个")
+            print(f"{'=' * 80}")
+
         return crawl_count
 
     def get_unique_proxies(self) -> List[str]:
-        """代理IP去重"""
+        """代理IP去重（优化日志显示）"""
+        before_count = len(self.proxies)
         unique_list = list(set(self.proxies))
+        after_count = len(unique_list)
+        duplicate_count = before_count - after_count
         self.proxies.clear()
+
+        # 计算重复率（处理除以0）
+        duplicate_rate = (duplicate_count / before_count) * 100 if before_count != 0 else 0.0
+
+        # 优化去重日志格式
+        print(f"\n{'=' * 60}")
+        print(f"🔍 代理IP去重统计")
+        print(f"   ├─ 去重前总数量：{before_count:3d} 个")
+        print(f"   ├─ 去重后总数量：{after_count:3d} 个")
+        print(f"   ├─ 重复IP数量：{duplicate_count:3d} 个")
+        print(f"   └─ 重复率：{duplicate_rate:6.2f}%")
+        print(f"{'=' * 60}")
+
         return unique_list
