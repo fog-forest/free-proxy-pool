@@ -21,7 +21,7 @@ def main():
         print("❌ 错误：仅支持 all/normal/anonymous 三种输入！")
         proxy_type = input("请重新输入代理类型：").strip().lower() or "all"
 
-    thread_count = 1000  # 线程数可适当调整
+    thread_count = 200  # 线程数可适当调整
     test_config = {
         "url": "http://captive.apple.com/",
         "keyword": "Success",

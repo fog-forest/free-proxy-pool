@@ -26,7 +26,7 @@
 |:--------------|:--:|-------|:--------------------------------|
 | 云代理           | ✅  | 普通/高匿 | <http://www.ip3366.net>         |
 | 快代理           | ✅  | 普通/高匿 | <https://www.kuaidaili.com>     |
-| 站大爷           | ❌  | 高匿    | <https://www.zdaye.com>         |
+| 站大爷           | 🈲 | 高匿    | <https://www.zdaye.com>         |
 | 开心代理          | ✅  | 普通/高匿 | <http://www.kxdaili.com>        |
 | 积流代理          | ✅  | 高匿    | <https://www.jiliuip.com>       |
 | 齐云代理          | ✅  | 高匿    | <https://www.qiyunip.com>       |
@@ -41,7 +41,7 @@
 | Proxy-Tools   | ❌  | 普通/高匿 | <https://proxy-tools.com>       |
 | OpenProxyList | ✅  | 高匿    | <https://api.openproxylist.xyz> |
 
-> 注：免费代理源稳定性受第三方影响，若部分源失效可在Issues反馈；欢迎推荐优质新代理源！
+> 注：免费代理源稳定性受第三方影响！
 
 ## 快速使用
 

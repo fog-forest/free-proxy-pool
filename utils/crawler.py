@@ -40,6 +40,7 @@ class ProxyCrawler:
         try:
             data = json.loads(html)
             proxy_list = []
+            # 兼容多种JSON数据结构：data.data.list、data.list、直接是列表
             if isinstance(data.get("data"), dict):
                 proxy_list = data["data"].get("list", [])
             elif isinstance(data, list):
@@ -56,13 +57,10 @@ class ProxyCrawler:
                 protocol = proxy.get("protocol")
                 ip = proxy.get("ip")
                 port = proxy.get("port")
-
-                ip_valid = isinstance(ip, str) and re.match(r'\d+\.\d+\.\d+\.\d+', ip)
-                port_valid = isinstance(port, (int, str)) and str(port).isdigit()
                 protocol_valid = protocol in valid_protocol
+                if protocol_valid and ip is not None and port is not None:
+                    result.append(f"{str(ip).strip()}:{str(port).strip()}")
 
-                if ip_valid and port_valid and protocol_valid:
-                    result.append(f"{ip}:{str(port).strip()}")
             return result
         except json.JSONDecodeError:
             print("❌ [JSON解析] 非有效JSON格式")
@@ -122,6 +120,7 @@ class ProxyCrawler:
             for item in proxy_list:
                 if "ip" in item and "port" in item:
                     result.append(f"{item['ip']}:{item['port']}")
+
             return result
         except json.JSONDecodeError as e:
             print(f"❌ [fpsList解析] JSON错误：{str(e)[:50]}")
@@ -149,12 +148,10 @@ class ProxyCrawler:
 
         result = []
         for ip, port in matches:
-            try:
-                port_int = int(port)
-                if 1 <= port_int <= 65535:
-                    result.append(f"{ip}:{port_int}")
-            except (ValueError, TypeError):
-                continue
+            port_stripped = port.strip()
+            if port_stripped:
+                result.append(f"{ip}:{port_stripped}")
+
         return result
 
     def _get_auto_page_count(self, url: str) -> int:
@@ -176,6 +173,33 @@ class ProxyCrawler:
         except Exception:
             print("❌ [自动分页] 解析总页数失败")
             return 1
+
+    def _is_valid_proxy(self, proxy: str) -> bool:
+        """内部方法：校验代理IP:PORT的合法性"""
+        if not proxy or ':' not in proxy:
+            return False
+        ip, port_str = proxy.split(':', 1)  # 分割IP和端口（仅分割一次，避免端口含:）
+
+        # 1. IP合法性校验（IPv4：四段数字，每段0-255）
+        ip_segments = ip.split('.')
+        if len(ip_segments) != 4:
+            return False
+        try:
+            ip_nums = [int(seg) for seg in ip_segments]
+            if not all(0 <= num <= 255 for num in ip_nums):
+                return False
+        except ValueError:
+            return False
+
+        # 2. 端口合法性校验（1-65535，支持数字字符串）
+        try:
+            port = int(port_str.strip())
+            if not (1 <= port <= 65535):
+                return False
+        except ValueError:
+            return False
+
+        return True
 
     def crawl(self, source: dict) -> int:
         """爬取指定源的代理IP"""
@@ -240,7 +264,7 @@ class ProxyCrawler:
                     no_data_count += 1
                 else:
                     ips = parser(html)
-                    valid_ips = [ip for ip in ips if re.match(r'\d+\.\d+\.\d+\.\d+:\d+', ip)]
+                    valid_ips = [ip for ip in ips if self._is_valid_proxy(ip)]  # 校验结果
                     page_valid_count = len(valid_ips)
 
                     # 分页结果日志

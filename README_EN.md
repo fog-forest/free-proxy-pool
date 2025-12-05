@@ -28,7 +28,7 @@ standard JSON output, seamlessly integrating with crawlers, testing, and other u
 |:--------------|:------:|:--------------|:--------------------------------|
 | 云代理           |   ✅    | Regular/Elite | <http://www.ip3366.net>         |
 | 快代理           |   ✅    | Regular/Elite | <https://www.kuaidaili.com>     |
-| 站大爷           |   ❌    | Elite         | <https://www.zdaye.com>         |
+| 站大爷           |   🈲   | Elite         | <https://www.zdaye.com>         |
 | 开心代理          |   ✅    | Regular/Elite | <http://www.kxdaili.com>        |
 | 积流代理          |   ✅    | Elite         | <https://www.jiliuip.com>       |
 | 齐云代理          |   ✅    | Elite         | <https://www.qiyunip.com>       |
@@ -43,8 +43,7 @@ standard JSON output, seamlessly integrating with crawlers, testing, and other u
 | Proxy-Tools   |   ❌    | Regular/Elite | <https://proxy-tools.com>       |
 | OpenProxyList |   ✅    | Elite         | <https://api.openproxylist.xyz> |
 
-> Note: The stability of free proxy sources is subject to third-party availability. Please report any inactive sources
-> via Issues. Recommendations for high-quality new proxy sources are welcome!
+> Note: The stability of free proxy sources is subject to third-party availability.
 
 ## Quick Start
 
